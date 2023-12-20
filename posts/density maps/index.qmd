@@ -1,0 +1,176 @@
+---
+title: "Road to density maps creation"
+author: "Adrian Manzanal"
+date: "2023-11-31"
+categories: [news, maps, density functions]
+image: "title.jpg"
+---
+
+# **Lets paint your density maps using R**
+**Different ways to create density maps**
+
+It would be useful to prepare these libraries for next steps..
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+library(tidyverse)
+library(lubridate)
+library(mapSpain)
+library(ggmap)
+library(sf)
+library(ggplot2)
+library(climaemet)
+library(stars)
+library(gstat)
+```
+
+Sometimes datasets are not geolocated in a similar way. There are some areas crowed of data and other areas with no data.
+In order to explain how to calculate the estimated information for these "empty" areas we are going to start using AEMET temperatures data by day and weather station:
+
+```{r}
+#| eval: true
+#| output: true
+#| error: false
+#| echo: false
+ 
+ 
+ #Seleccionamos una fecha del histórico
+ fecha_select <- "2023-11-01"
+ 
+ #conseguimos los datos diarios de cada estación para esa fecha
+ clim_data <- aemet_daily_clim(
+   start = fecha_select, end = fecha_select,
+   return_sf = TRUE
+ )
+ 
+ #quitamos las Canarias para simplificar
+ clim_data_clean <- clim_data  |> 
+   filter(!provincia %in% c("LAS PALMAS", "STA. CRUZ DE TENERIFE"))  |> 
+   dplyr::select(fecha, tmin)  |> 
+   filter(!is.na(tmin))
+ 
+ #conseguimos el mapa de la Península
+ esp_sf <- esp_get_ccaa(epsg = 4326) |> 
+   filter(ine.ccaa.name != "Canarias") 
+ 
+ggplot() +
+  geom_sf(data = esp_sf) +
+  geom_sf(fill = "white") +
+  geom_sf(data = clim_data_clean, color = "#EE9322") +
+  theme_void() +
+  labs(
+    title = "Estaciones de la Aemet",
+    subtitle = "2023"
+  ) +
+  theme(
+    plot.title = element_text(size = 21, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 18, hjust = 0.5)
+  )
+```
+
+*To learn how to connect to "climaemet" package please see the previous post "Handle climatic data using AEMET API".*
+
+
+### 1. Extract clima data and Spain SF map.
+
+```{r}
+#| eval: false
+#| output: false
+#| error: false
+#| echo: true
+ 
+ 
+ #Historical Date
+ fecha_select <- "2023-11-01"
+ 
+ #Extract clima data for this day:
+ clim_data <- aemet_daily_clim(
+   start = fecha_select, end = fecha_select,
+   return_sf = TRUE
+ )
+ 
+ #Select min temperatures and remove Canary Islands:
+ clim_data_clean <- clim_data  |> 
+   filter(!provincia %in% c("LAS PALMAS", "STA. CRUZ DE TENERIFE"))  |> 
+   dplyr::select(fecha, tmin)  |> 
+   filter(!is.na(tmin))
+ 
+ #From mapSpain we download the SF:
+ esp_sf <- esp_get_ccaa(epsg = 4326) |> 
+   filter(ine.ccaa.name != "Canarias") 
+```
+
+### 2. Create the GRID to interpolate/estimate data.
+
+To interpolate data between weather stations it is important to create a grill. In order to adjust the same number of spaces we divided Spain area by small cells (10km)
+
+
+```{r}
+#| eval: true
+#| output: true
+#| error: false
+#| echo: true
+
+mapa.sf <- st_as_sf(esp_sf, coords = geometry) # Spain map has been selected to be converted to SF
+
+
+st_bbox(mapa.sf) %>% 
+  st_as_stars(mapa.sf = 10000) %>% # Using Spain SF object we are going to create 10 km cells grill.
+st_crop(mapa.sf) -> grd 
+
+plot(grd, main="GRID", col="cadetblue3", breaks="equal")
+
+```
+
+
+### 3. First interpolation Approach: Thiessen Polynomials.
+
+This methodological approach allows us to create areas for this data point. These calculated areas are equivalent distributed depending the distance between each of the original points.
+
+
+```{r}
+#| eval: true
+#| output: true
+#| error: false
+#| echo: true
+
+thiessen <- krige(tmin ~ 1, clim_data_clean, grd, nmax = 1)
+plot(thiessen)
+
+
+ggplot() +
+  geom_stars(data = thiessen, aes(fill = var1.pred, x = x, y = y)) +
+  geom_sf(data = st_cast(esp_sf, "MULTILINESTRING")) +
+  geom_sf(data = clim_data_clean, color = "#EE9322") +
+  scale_fill_gradientn(colours = sf.colors(20), na.value=NA) +
+  theme_void() +
+  labs(
+    title = "Minimal Temperatures",
+    subtitle = "December 2023"
+  ) +
+theme_void()
+
+```  
+
+### 4. IDW Interpolation
+
+```{r}
+#| eval: true
+#| output: true
+#| error: false
+#| echo: true
+i = idw(tmin ~ 1, clim_data_clean, grd)
+  ## [inverse distance weighted interpolation]
+ggplot() + geom_stars(data = i, aes(fill = var1.pred, x = x, y = y)) + # IDW Prediction
+  geom_sf(data = st_cast(mapa.sf, "MULTILINESTRING")) + # Spain map shape
+  xlab("Longitud") + ylab("Latitud") + # Axis names
+  labs(
+    title = "Minimal Temperatures",
+    subtitle = "December 2023"
+  )  + # Title
+  scale_fill_gradientn(colours = sf.colors(20), na.value=NA)+ # Colours
+  theme_void() 
+
+```  

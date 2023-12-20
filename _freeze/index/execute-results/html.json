@@ -1,0 +1,14 @@
+{
+  "hash": "127442950caacd54885310793a787f62",
+  "result": {
+    "markdown": "---\ntitle: \"Adrián Manzanal Oliva\"\ndate: \"2023-12-20\"\nimage: adribilbao.jpeg\ntitle-block-banner: TRUE\nabout:\n  template: solana\n  image-width: 25em     #- https://cybmeta.com/em-y-rem\n  image-shape: round\n  links:\n    - icon: envelope\n      text: Email\n      href: \"mailto:<manzanal.adrian@gmail.com>\"\n    - icon: linkedin\n      text: LinkedIn\n      href: https://www.linkedin.com/in/manzanaladrian\n    - icon: github\n      text: Github\n      href: https://github.com/adrianmanzanal\n---\n\n\n*Welcome to my blog. Here you will find some personal and profesional information about me.*\n\n*Also you can find some R exercises that could be useful if you are learning R code.*\n\n*Hope it helps!*\n\n*Adri.*\n",
+    "supporting": [],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

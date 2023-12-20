@@ -1,0 +1,172 @@
+---
+title: "Create map-charts using mapSpain"
+author: "Adrian Manzanal"
+date: "2023-11-21"
+categories: [news, code, analysis, geolocalitation]
+image: "logo.png"
+---
+
+# **The purpose is to create quick map-charts using mapSpain library in R.**
+**Let´s go to show our data using maps!**
+
+### 1. mapSpain library
+
+mapSpain is a package that provides spatial sf objects of the administrative boundaries of Spain, including CCAA, provinces and municipalities.
+
+mapSpain also provides a leaflet plugin to be used with the leaflet package, that loads several basemaps of public institutions of Spain, and the ability of downloading and processing static tiles.
+
+Full site with examples and vignettes on https://ropenspain.github.io/mapSpain/
+
+You can install and activate the library following the instructions:
+
+```{r}
+#| eval: false
+#| output: false
+#| error: false
+install.packages("mapSpain", dependencies = TRUE)
+```
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+library(mapSpain)
+```
+
+```{r}
+#| eval: false
+#| output: false
+#| error: false
+install.packages("sf", dependencies = TRUE)
+```
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+library(sf)
+```
+
+### 2. Obtain CCAA Spain Map
+
+We are going to extract basic Spain map which includes all CCAA. In order to be able
+to represent that data we need to add ggplot library to our project:
+
+```{r}
+#| eval: false
+#| output: false
+#| error: false
+install.packages("ggplot2", dependencies = TRUE)
+```
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+library(ggplot2)
+```
+
+The following fucntion (esp-get_ccaa) will generate a data frame that include geometry information for each CCAA:
+
+```{r}
+#| eval: true
+#| output: true
+#| error: true
+spain <- esp_get_ccaa() 
+
+ggplot() + geom_sf(data=spain)
+
+```
+### 3. Joining data and map-chart
+
+**First of all we are going to upload some data**
+
+Inflation data segmented by CCAA will be upload using the basic instruction. This data set has been downloaded from the INE website. It represents the inflation rates during the current year so far. You can choose the KPI that you are interested in, but the data set granularity should include CCAA detail.
+
+```{r}
+#| eval: false
+#| output: false
+#| error: false
+install.packages("tidyverse", dependencies = TRUE)
+```
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+library(tidyverse)
+```
+
+```{r}
+#| eval: true
+#| output: true
+#| error: true
+inflation_df <- read.csv("inflacionccaa.csv", header = TRUE, sep = ";", check.names = F)
+glimpse(inflation_df)
+```
+
+**Now we are going to modify data in order to get the right information**
+
+Original file contains some many different KPIs that explain prices' variations. We are interested to see differences in annual rates (2021 vs 2022) by CCAA. In addition, CCAA IDs should be codified in order to match with the map-chart IDs.
+
+```{r}
+#| eval: true
+#| output: true
+#| error: true
+
+inflationOK_df <- inflation_df %>% 
+  filter(`Tipo de dato` == "Variacion anual") %>% 
+  filter(`Comunidades y Ciudades Autonomas` != "Nacional") %>% 
+  mutate(iso2.ccaa.code = case_when(
+    str_detect(`Comunidades y Ciudades Autonomas`, "01 AndalucIa") ~ "ES-AN",
+    str_detect(`Comunidades y Ciudades Autonomas`, "02 Aragon") ~ "ES-AR",
+    str_detect(`Comunidades y Ciudades Autonomas`, "03 Asturias. Principado de") ~ "ES-AS",
+    str_detect(`Comunidades y Ciudades Autonomas`, "04 Balears. Illes") ~ "ES-IB",
+    str_detect(`Comunidades y Ciudades Autonomas`, "05 Canarias") ~ "ES-CN",
+    str_detect(`Comunidades y Ciudades Autonomas`, "06 Cantabria") ~ "ES-CB",
+    str_detect(`Comunidades y Ciudades Autonomas`, "07 Castilla y Leon") ~ "ES-CL",
+    str_detect(`Comunidades y Ciudades Autonomas`, "08 Castilla - La Mancha") ~ "ES-CM",
+    str_detect(`Comunidades y Ciudades Autonomas`, "09 Cataluna") ~ "ES-CT",
+    str_detect(`Comunidades y Ciudades Autonomas`, "10 Comunitat Valenciana") ~ "ES-VC",
+    str_detect(`Comunidades y Ciudades Autonomas`, "11 Extremadura") ~ "ES-EX",
+    str_detect(`Comunidades y Ciudades Autonomas`, "12 Galicia") ~ "ES-GA",
+    str_detect(`Comunidades y Ciudades Autonomas`, "13 Madrid. Comunidad de") ~ "ES-MD",
+    str_detect(`Comunidades y Ciudades Autonomas`, "14 Murcia. Region de") ~ "ES-MC",
+    str_detect(`Comunidades y Ciudades Autonomas`, "15 Navarra. Comunidad Foral de") ~ "ES-NC",
+    str_detect(`Comunidades y Ciudades Autonomas`, "16 PaIs Vasco") ~ "ES-PV",
+    str_detect(`Comunidades y Ciudades Autonomas`, "17 Rioja. La") ~ "ES-RI",
+    str_detect(`Comunidades y Ciudades Autonomas`, "18 Ceuta") ~ "ES-CE",
+    str_detect(`Comunidades y Ciudades Autonomas`, "19 Melilla") ~ "ES-ML"
+  )) %>% 
+  select(-Periodo, -'Comunidades y Ciudades Autonomas')
+
+inflationOK_df 
+```
+**Joining Spain Map and Inflation data**
+
+Then we will include inflation data from the csv into spain map table.
+```{r}
+#| eval: true
+#| output: true
+#| error: true
+spainok <- left_join(spain, inflationOK_df, by = "iso2.ccaa.code")
+
+```
+### 4. Creating the map-chart with the inflation information
+
+**Last step it is more easy, start to draw**
+
+It is very important to declare the numeric variable that we want to "paint". 
+In our case it is "Total".
+
+```{r}
+#| eval: true
+#| output: true
+#| error: true
+ggplot() + geom_sf(data=spainok, aes(fill = Total)) + 
+  scale_fill_continuous(low="yellow",high="red") +
+  geom_sf(data = esp_get_can_box(), colour = "grey50")
+```
+
+
+Full site with more examples and vignettes on https://ropenspain.github.io/mapSpain/

@@ -1,0 +1,261 @@
+---
+title: "Handle climatic data using AEMET API"
+author: "Adrian Manzanal"
+date: "2023-11-23"
+categories: [news, AEMET]
+image: "climaemet.jpg"
+---
+
+# **Start to download historical data and 4 days forecast.**
+**Quick weather information**
+
+The goal of climaemet is to serve as an interface to download the climatic data of the Spanish Meteorological Agency (AEMET) directly from R using their API and create scientific graphs (climate charts, trend analysis of climate time series, temperature and precipitation anomalies maps, “warming stripes” graphics, climatograms, etc.).
+
+Browse manual and vignettes at https://ropenspain.github.io/climaemet/.
+
+### 1. climaemet library and registration
+
+You can install the released version of climaemet from CRAN with:
+
+```{r}
+#| eval: false
+#| output: false
+#| error: false
+install.packages("climaemet", dependencies = TRUE)
+```
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+library(climaemet)
+```
+
+After install the package you have to register in the following URL in order to get the API key. Once
+you receive your ID key you have sig in using the following function:
+
+```{r}
+#| eval: false
+#| output: false
+#| error: false
+browseURL("https://opendata.aemet.es/centrodedescargas/obtencionAPIKey")
+```
+
+```{r}
+#| echo: false
+#| eval: true
+#| output: false
+#| error: false
+aemet_api_key("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtYW56YW5hbC5hZHJpYW5AZ21haWwuY29tIiwianRpIjoiYTgzMGZiMDYtNDA4MS00ZjI5LTg2OGQtODAxNjk4ZTQ5ODgzIiwiaXNzIjoiQUVNRVQiLCJpYXQiOjE3MDAwNjAxNDgsInVzZXJJZCI6ImE4MzBmYjA2LTQwODEtNGYyOS04NjhkLTgwMTY5OGU0OTg4MyIsInJvbGUiOiIifQ.K-WatjfGMNJ-fO4V6hj4u4P89PUdBuTbieab_gcKH44", install = TRUE, overwrite = TRUE)
+```
+
+Once you receive your ID key you have to sig in using the following function:
+
+```{r}
+#| eval: false
+#| output: false
+#| error: false
+aemet_api_key("YOUR ID KEY", install = TRUE, overwrite = TRUE)
+```
+
+It would be useful to prepare these library for next steps..
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+library(tidyverse)
+library(lubridate)
+library(broom)
+library(mapSpain)
+library(ggmap)
+library(sf)
+library(ggplot2)
+```
+
+### 2. Historical data by weather station
+
+Aemet database contains historical weather data from 291 stations:
+```{r}
+#| eval: true
+#| output: true
+#| error: false
+#| echo: false
+
+#Seleccionamos una fecha del histórico
+fecha_select <- "2023-11-01"
+
+#conseguimos los datos diarios de cada estación para esa fecha
+clim_data <- aemet_daily_clim(
+  start = fecha_select, end = fecha_select,
+  return_sf = TRUE
+)
+
+#quitamos las Canarias para simplificar
+clim_data_clean <- clim_data  |> 
+  filter(!provincia %in% c("LAS PALMAS", "STA. CRUZ DE TENERIFE"))  |> 
+  dplyr::select(fecha, tmin)  |> 
+  filter(!is.na(tmin))
+
+#conseguimos el mapa de la Península
+esp_sf <- esp_get_ccaa(epsg = 4326) |> 
+  filter(ine.ccaa.name != "Canarias") 
+
+ggplot() + geom_sf(data=esp_sf) +
+  geom_sf(data = clim_data_clean, color = "#EE9322") 
+```
+
+In order to see stations we are going to download the relation table which contains all of them and the ID:
+
+```{r}
+#| eval: true
+#| output: true
+#| error: false
+stations <- aemet_stations() 
+head(stations)
+```
+
+Select the station that you want to analyze
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+station <- "2661" # Leon
+```
+
+Now we are going to download daily climatic data for this station between 2012 and 2023 using the following function: "aemet_daily_clim". This dataset contains multiple clima variables. We are interested on temperatures (average, minimal and max.). After filtrating teperatures we should convert to longer format help us to create time series charts.
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+leon_2023 <-
+  aemet_daily_clim(station, start = "2012-01-01", end = "2023-11-30") %>% 
+  select(fecha, tmed, tmax, tmin) |> 
+  pivot_longer(cols=c("tmed", "tmax", "tmin"),
+               names_to= "variable",
+               values_to="temp")
+```
+
+Using "leon_2023" object, we can create the chart which contains daily historic temperatures in Leon:
+
+```{r}
+#| eval: true
+#| output: true
+#| error: false
+ggplot(leon_2023, aes(x = fecha, y = temp, group = variable, color = variable)) +
+  geom_line(linewidth = 0.2) +
+  scale_y_continuous(
+    labels = scales::label_comma(suffix = "º")) +
+  scale_color_manual(values = c("#EE9322","grey","#78D6C6"), 
+                     name = "Temperature") +
+  theme_minimal()+
+  labs(title = "Leon",
+       subtitle = "Daily Temperatures, 2012-2023",
+       x = "", y ="") +
+  theme(
+    legend.position = "top",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    plot.title = element_text(size = 28, face = "bold", family = "serif", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 19),
+    axis.text = element_text(size = 16),
+    legend.text = element_text(size = 18)
+  )
+
+```
+
+### 3.Clima Forecast
+
+If you are interested to know Aemet forecast, using "aemet_forecast_daily" you will be able to download clima variables by county.
+
+using aemet_munic we are going to create an array which contains countys IDs.
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+varios_munis <- aemet_munic  %>% 
+  filter(municipio_nombre %in% c("Loeches", "León", "Potes", "Gandia"))  %>%    
+  pull(municipio)
+
+daily <- aemet_forecast_daily(varios_munis)
+```
+
+To review available variables
+
+
+```{r}
+#| eval: true
+#| output: true
+#| error: false
+aemet_forecast_vars_available(daily)
+```
+
+Now lets select those variable that we are interested on. 
+
+```{r}
+#| eval: true
+#| output: false
+#| error: false
+
+temp_diaria <- aemet_forecast_tidy(daily, "temperatura")
+
+
+temp_diaria_limpio <- temp_diaria  |> 
+  select(
+    elaborado, fecha, municipio, nombre, temperatura_minima,
+    temperatura_maxima
+  )  |> 
+  tidyr::pivot_longer(cols = contains("temperatura"))
+```
+
+Time to chartering
+
+```{r}
+#| eval: true
+#| output: true
+#| error: false
+ggplot(temp_diaria_limpio) +
+  geom_line(aes(fecha, value, color = name), linewidth = 1) +
+  geom_point(aes(fecha, value, color = name), size = 1.9) +
+  facet_wrap(~nombre, ncol = 2) +   # que haga un gráfico para cada municipio
+  scale_color_manual(
+    values = c("#EE9322", "#78D6C6"),
+    labels = c("max", "min")
+  ) +
+  scale_x_date(
+    labels = scales::label_date_short(),
+    breaks = "day"
+  ) +
+  scale_y_continuous(
+    labels = scales::label_comma(suffix = "º"),
+    limits = c(0,30)
+  ) +
+  theme_minimal() +
+  labs(
+    x = "", y = "",
+    color = "",
+    title = "Some Countys",
+    subtitle = "Temperatures forecast for next 7 days",
+    caption = paste(
+      "Created ",
+      format(temp_diaria_limpio$elaborado[1], usetz = TRUE)
+    )
+  )  +
+  theme(
+    legend.position = "top",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    plot.title = element_text(size = 28, face = "bold", family = "serif", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 19),
+    axis.text = element_text(size = 16),
+    legend.text = element_text(size = 18),
+    strip.text = element_text(size = 18)
+  )
+```
+
+Full site with more examples and vignettes on https://ropenspain.github.io/climaemet/
