@@ -1,0 +1,28 @@
+---
+title: "Adrián Manzanal Oliva"
+date: "`r Sys.Date()`"
+image: adribilbao.jpeg
+title-block-banner: TRUE
+about:
+  template: solana
+  image-width: 25em     #- https://cybmeta.com/em-y-rem
+  image-shape: round
+  links:
+    - icon: envelope
+      text: Email
+      href: "mailto:<manzanal.adrian@gmail.com>"
+    - icon: linkedin
+      text: LinkedIn
+      href: https://www.linkedin.com/in/manzanaladrian
+    - icon: github
+      text: Github
+      href: https://github.com/adrianmanzanal
+---
+
+*Welcome to my blog. Here you will find some personal and profesional information about me.*
+
+*Also you can find some R exercises that could be useful if you are learning R code.*
+
+*Hope it helps!*
+
+*Adri.*

@@ -1,0 +1,12 @@
+---
+title: "Research"
+title-block-banner: TRUE
+---
+
+Publications:
+
+## Economics 2017-2018
+
+- [El sector naval de Corea del Sur y España: Análisis comparado de los principales indicadores de competetitividad](/pdfs/investigacion/naval.pdf)
+
+---

@@ -1,0 +1,12 @@
+---
+title: "Curriculum Vitae"
+title-block-banner: TRUE
+---
+
+
+
+
+
+- [Adrian Manzanal Oliva](/pdfs/cv/CV_Adrián_Manzanal_Oliva__EN___own_.pdf)
+
+---

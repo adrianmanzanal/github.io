@@ -1,0 +1,37 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Adrian Manzanal Oliva"
+  navbar:
+    logo: "pngegg.png"
+    right:
+      - text: "About me"
+        href: index.qmd
+      - icon: github
+        href: https://github.com/<tu-usuario-github>
+      - icon: linkedin
+        href: https://www.linkedin.com/in/manzanaladrian
+      - icon: envelope
+        url: "mailto:<manzanal.adrian@gmail.com>"
+    left: 
+      
+      - text: "Post"
+        href: blog.qmd
+      - text: "Research"
+        href: research.qmd
+      - text: "Teaching"
+        href: docencia.qmd
+      - text: "CV"
+        href: cv.qmd
+ 
+format:
+  html:
+    theme: flatly  
+    css: styles.css
+    toc: true
+    highlight-style: a11y
+
+execute:
+  freeze: auto

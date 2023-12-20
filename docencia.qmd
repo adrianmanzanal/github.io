@@ -1,0 +1,12 @@
+---
+title: "Teaching"
+title-block-banner: TRUE
+---
+
+Courses:
+
+## Universidad Complutense de Madrid
+
+- [Políticas Comercio Interior (2021-2022)](/pdfs/docencia/PCI Introduccion.pdf)
+
+---
